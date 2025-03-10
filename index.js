@@ -1,8 +1,10 @@
-const express = require('express');
-const chalk = require('chalk');
-const fs = require('fs');
-const cors = require('cors');
-const path = require('path');
+const express = require("express");
+const chalk = require("chalk");
+const fs = require("fs");
+const cors = require("cors");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const { register, login, authenticate } = require("./src/auth");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -12,20 +14,22 @@ app.set("json spaces", 2);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 app.use(cors());
-app.use('/', express.static(path.join(__dirname, 'api-page')));
-app.use('/src', express.static(path.join(__dirname, 'src')));
 
-const settingsPath = path.join(__dirname, './src/settings.json');
-const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+app.use("/", express.static(path.join(__dirname, "api-page")));
+app.use("/src", express.static(path.join(__dirname, "src")));
+
+const settingsPath = path.join(__dirname, "./src/settings.json");
+const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
 
 app.use((req, res, next) => {
     const originalJson = res.json;
     res.json = function (data) {
-        if (data && typeof data === 'object') {
+        if (data && typeof data === "object") {
             const responseData = {
                 status: data.status,
-                creator: settings.apiSettings.creator || "Created Using Rynn UI",
+                creator: settings.apiSettings.creator || "Created Using xeyyzu",
                 ...data
             };
             return originalJson.call(this, responseData);
@@ -35,27 +39,34 @@ app.use((req, res, next) => {
     next();
 });
 
-// Api Route
+// **Route untuk Register & Login**
+app.post("/register", register);
+app.post("/login", login);
+
+// **Middleware Proteksi**
+app.use(authenticate);
+
+// **Memuat API Routes (Hanya jika sudah login)**
 let totalRoutes = 0;
-const apiFolder = path.join(__dirname, './src/api');
+const apiFolder = path.join(__dirname, "./src/api");
 fs.readdirSync(apiFolder).forEach((subfolder) => {
     const subfolderPath = path.join(apiFolder, subfolder);
     if (fs.statSync(subfolderPath).isDirectory()) {
         fs.readdirSync(subfolderPath).forEach((file) => {
             const filePath = path.join(subfolderPath, file);
-            if (path.extname(file) === '.js') {
+            if (path.extname(file) === ".js") {
                 require(filePath)(app);
                 totalRoutes++;
-                console.log(chalk.bgHex('#FFFF99').hex('#333').bold(` Loaded Route: ${path.basename(file)} `));
+                console.log(chalk.bgHex("#FFFF99").hex("#333").bold(` Loaded Route: ${path.basename(file)} `));
             }
         });
     }
 });
-console.log(chalk.bgHex('#90EE90').hex('#333').bold(' Load Complete! ✓ '));
-console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Total Routes Loaded: ${totalRoutes} `));
+console.log(chalk.bgHex("#90EE90").hex("#333").bold(" Load Complete! ✓ "));
+console.log(chalk.bgHex("#90EE90").hex("#333").bold(` Total Routes Loaded: ${totalRoutes} `));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'api-page', 'index.html'));
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "api-page", "index.html"));
 });
 
 app.use((req, res, next) => {
@@ -68,7 +79,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Server is running on port ${PORT} `));
+    console.log(chalk.bgHex("#90EE90").hex("#333").bold(` Server is running on port ${PORT} `));
 });
 
 module.exports = app;
